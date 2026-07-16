@@ -1,0 +1,22 @@
+@if (loading()) {
+  <p>Loading…</p>
+} @else if (error()) {
+  <p>Failed to load chart.</p>
+} @else if (chart(); as c) {
+  <h2>{{ c.name }}</h2>
+  <p>Film type: {{ c.film_type }}</p>
+
+  <h3>Layers</h3>
+  @for (layer of c.layers; track layer.name) {
+    <div>
+      <strong>{{ layer.name }}</strong>: {{ layer.values.join(', ') }}
+    </div>
+  }
+
+  <h3>Final layer</h3>
+  <div>
+    <strong>{{ c.final_layer.name }}</strong>: {{ c.final_layer.values.join(', ') }}
+  </div>
+
+  <a routerLink="/charts">Back to list</a>
+}
