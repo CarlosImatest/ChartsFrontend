@@ -3,20 +3,34 @@
 } @else if (error()) {
   <p>Failed to load chart.</p>
 } @else if (chart(); as c) {
+  <h2>{{chartType}}</h2>
   <h2>{{ c.name }}</h2>
   <p>Film type: {{ c.film_type }}</p>
 
-  <h3>Layers</h3>
-  @for (layer of c.layers; track layer.name) {
-    <div>
-      <strong>{{ layer.name }}</strong>: {{ layer.values.join(', ') }}
-    </div>
-  }
+  <h3>Layer Structure: Vertical Columns</h3>
+  
+  <table class="chart-table">
+    <thead>
+      <tr>
+        <!-- 1. Render Headers from allLayers() -->
+        @for (layer of allLayers(); track layer.name) {
+          <th>{{ layer.name }}</th>
+        }
+      </tr>
+    </thead>
+    <tbody>
+      <!-- 2. Render pre-pivoted Rows from tableRows() -->
+      @for (row of tableRows(); track $index) {
+        <tr>
+          @for (cell of row; track $index) {
+            <td>{{ cell }}</td>
+          }
+        </tr>
+      }
+    </tbody>
+  </table>
 
-  <h3>Final layer</h3>
-  <div>
-    <strong>{{ c.final_layer.name }}</strong>: {{ c.final_layer.values.join(', ') }}
+  <div style="margin-top: 20px;">
+    <a routerLink="/charts">Back to list</a>
   </div>
-
-  <a routerLink="/charts">Back to list</a>
 }
