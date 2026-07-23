@@ -1,0 +1,69 @@
+<mat-form-field>
+  <mat-label>Pick chart type</mat-label>
+  <mat-select (selectionChange)="onChartSelect($event.value)">
+    @for (type of chartTypes; track type) {
+      <mat-option [value]="type">{{ type }}</mat-option>
+    }
+  </mat-select>
+</mat-form-field>
+
+@if (selectedChart()) {
+  <table class="chart-table">
+    <thead>
+      <tr>
+        @for (layer of layers(); track $index; let i = $index) {
+          <th>
+            <input
+              class="cell-input header-input"
+              [placeholder]="layerPlaceholder(i)"
+              [value]="layer.name"
+              (input)="updateLayerName(i, $any($event.target).value)"
+            />
+          </th>
+        }
+        <th>
+          <input
+            class="cell-input header-input final"
+            placeholder="Final layer name"
+            [value]="finalLayer()?.name ?? ''"
+            (input)="updateFinalLayerName($any($event.target).value)"
+          />
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (row of rowIndexes(); track row) {
+        <tr>
+          @for (layer of layers(); track $index; let colIdx = $index) {
+            <td>
+              @if (isActive(layer, row)) {
+                <input
+                  class="cell-input"
+                  type="number"
+                  placeholder="0"
+                  [value]="layer.values[row] ?? ''"
+                  (input)="updateLayerValue(colIdx, row, $any($event.target).value)"
+                />
+              } @else if (trailingLabel(colIdx, layer, row); as label) {
+                <span class="meta-label">{{ label }}</span>
+              }
+            </td>
+          }
+          <td class="final-cell">
+            @if (isComputedFinal()) {
+              <span class="computed-value">{{ finalValues()[row] ?? '' }}</span>
+            } @else {
+              <input
+                class="cell-input"
+                type="number"
+                placeholder="0"
+                [value]="finalValues()[row] ?? ''"
+                (input)="updateFinalLayerValue(row, $any($event.target).value)"
+              />
+            }
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+}

@@ -24,6 +24,7 @@ export class ChartDetailComponent implements OnInit {
     if (!c) return [];
     return [...c.layers, c.final_layer];
   });
+  //getting the chart type name to be display in html
   chartType = this.route.snapshot.paramMap.get('chartType') as ChartType;
 
   // 2. Pivot the data into rows, adding top-offset padding to the middle layers
@@ -43,7 +44,7 @@ export class ChartDetailComponent implements OnInit {
     // CHANGE HERE: Allow the matrix to hold both strings (for '') and numbers
     const columns: (string | number)[][] = [];
 
-    // Column 1: Layer 1 (Standard values)
+    // Column 1: Layer 1
     columns.push([...layer1.values]);
 
     // Columns 2+: Middle Layers (Padded at the top to match Layer 1's baseline)
@@ -58,13 +59,13 @@ export class ChartDetailComponent implements OnInit {
       }
     });
 
-    // Last Column: Final Layer (Standard values)
+    // Last Column: Final Layer values
     columns.push([...finalLayer.values]);
 
     // Find the total rows based on the longest column overall (usually the final layer)
     const maxRows = Math.max(...columns.map(col => col.length), 0);
 
-    // CHANGE HERE: Allow rows matrix to accept strings or numbers
+    // allow rows matrix to accept strings or numbers
     const rows: (string | number)[][] = [];
     for (let i = 0; i < maxRows; i++) {
       const rowData = columns.map(col => col[i] !== undefined ? col[i] : '');
