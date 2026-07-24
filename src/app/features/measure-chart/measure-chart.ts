@@ -159,4 +159,13 @@ export class MeasureChart {
       return { ...fl, values };
     });
   }
+  //gives an id based on its col and row so when ENTER it looks for the id
+  //and moves to the next cell/row
+  onEnterKey(event: Event, colId: string, row: number): void {
+  event.preventDefault();
+  const nextInput = document.getElementById(`cell-${colId}-${row + 1}`);
+  if (nextInput) {
+    (nextInput as HTMLInputElement).focus();
+  }
+}
 }

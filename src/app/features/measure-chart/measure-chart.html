@@ -32,38 +32,42 @@
       </tr>
     </thead>
     <tbody>
-      @for (row of rowIndexes(); track row) {
-        <tr>
-          @for (layer of layers(); track $index; let colIdx = $index) {
-            <td>
-              @if (isActive(layer, row)) {
-                <input
-                  class="cell-input"
-                  type="number"
-                  placeholder="0"
-                  [value]="layer.values[row] ?? ''"
-                  (input)="updateLayerValue(colIdx, row, $any($event.target).value)"
-                />
-              } @else if (trailingLabel(colIdx, layer, row); as label) {
-                <span class="meta-label">{{ label }}</span>
-              }
-            </td>
+  @for (row of rowIndexes(); track row) {
+    <tr>
+      @for (layer of layers(); track $index; let colIdx = $index) {
+        <td>
+          @if (isActive(layer, row)) {
+            <input
+              class="cell-input"
+              type="number"
+              placeholder="0"
+              [id]="'cell-layer-' + colIdx + '-' + row"
+              [value]="layer.values[row] ?? ''"
+              (input)="updateLayerValue(colIdx, row, $any($event.target).value)"
+              (keydown.enter)="onEnterKey($event, 'layer-' + colIdx, row)"
+            />
+          } @else if (trailingLabel(colIdx, layer, row); as label) {
+            <span class="meta-label">{{ label }}</span>
           }
-          <td class="final-cell">
-            @if (isComputedFinal()) {
-              <span class="computed-value">{{ finalValues()[row] ?? '' }}</span>
-            } @else {
-              <input
-                class="cell-input"
-                type="number"
-                placeholder="0"
-                [value]="finalValues()[row] ?? ''"
-                (input)="updateFinalLayerValue(row, $any($event.target).value)"
-              />
-            }
-          </td>
-        </tr>
+        </td>
       }
-    </tbody>
+      <td class="final-cell">
+        @if (isComputedFinal()) {
+          <span class="computed-value">{{ finalValues()[row] ?? '' }}</span>
+        } @else {
+          <input
+            class="cell-input"
+            type="number"
+            placeholder="0"
+            [id]="'cell-final-' + row"
+            [value]="finalValues()[row] ?? ''"
+            (input)="updateFinalLayerValue(row, $any($event.target).value)"
+            (keydown.enter)="onEnterKey($event, 'final', row)"
+          />
+        }
+      </td>
+    </tr>
+  }
+</tbody>
   </table>
 }
