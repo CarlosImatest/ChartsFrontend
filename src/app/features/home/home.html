@@ -1,0 +1,13 @@
+<div class="home-container">
+  <h2>Welcome{{ authService.currentUser()?.first_name ? ', ' + authService.currentUser()?.first_name : '' }}</h2>
+
+  <nav>
+    <a routerLink="/charts">Charts</a>
+    <a routerLink="/measure-chart">Measure Chart</a>
+    @if (authService.hasMinimumRole(UserRole.ADMIN)) {
+      <a routerLink="/register">Add User</a>
+    }
+  </nav>
+
+  <button (click)="authService.logout()">Log out</button>
+</div>

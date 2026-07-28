@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { TableDemoComponent } from '../../app.component'; // Adjust path if needed
+
 
 export const CHARTS_ROUTES: Routes = [
   {
@@ -12,10 +12,4 @@ export const CHARTS_ROUTES: Routes = [
     loadComponent: () =>
       import('./chart-detail/chart-detail.component').then(m => m.ChartDetailComponent)
   },
-
-  {
-    path: 'demo', // <-- Give it a clear path here!
-    loadComponent: () =>
-      import('../../app.component').then(m => m.TableDemoComponent)
-  }
 ];
