@@ -5,6 +5,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { AuthService } from '../../../core/services/auth.service';
+import { UserStatus } from '../../../shared/models/user.model';
 
 @Component({
   selector: 'app-login',
@@ -26,8 +27,15 @@ export class Login {
 
     this.authService.login({ email: this.email, password: this.password }).subscribe({
       next: (response) => {
-        this.authService.handleLoginSuccess(response);
-        this.router.navigate(['/']);
+        this.authService.handleAuthSuccess(response);
+
+        // A pending user logging back in (e.g. closed the tab mid-flow)
+        // should land back on the waiting page, not the home page.
+        if (response.user.status === UserStatus.PENDING_VERIFICATION) {
+          this.router.navigate(['/waiting']);
+        } else {
+          this.router.navigate(['/']);
+        }
       },
       error: () => {
         this.errorMessage.set('Incorrect email or password.');

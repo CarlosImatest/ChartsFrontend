@@ -1,0 +1,37 @@
+<div class="invite-container">
+  <h2>Invite a user</h2>
+
+  <form (ngSubmit)="onSubmit()">
+    <mat-form-field>
+      <mat-label>Email</mat-label>
+      <input matInput type="email" [(ngModel)]="email" name="email" required />
+    </mat-form-field>
+
+    <mat-form-field>
+      <mat-label>Role</mat-label>
+      <mat-select [(ngModel)]="role" name="role">
+        @for (r of roles; track r) {
+          <mat-option [value]="r">{{ r }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    @if (errorMessage()) {
+      <p class="error">{{ errorMessage() }}</p>
+    }
+
+    <button mat-raised-button color="primary" type="submit">Generate invite</button>
+  </form>
+
+  @if (result(); as invite) {
+    <div class="result">
+      <p>Invite created for <strong>{{ invite.email }}</strong> as <strong>{{ invite.role }}</strong>.</p>
+      <p>Expires: {{ invite.expires_at }}</p>
+      <div class="link-row">
+        <code>{{ invite.invite_url }}</code>
+        <button mat-button (click)="copyLink()">Copy</button>
+      </div>
+      <p class="hint">An email was also sent to {{ invite.email }} with this link.</p>
+    </div>
+  }
+</div>

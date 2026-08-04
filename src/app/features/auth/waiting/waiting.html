@@ -1,0 +1,19 @@
+<div class="waiting-container">
+  <h2>Verify your email</h2>
+  <p>We sent a verification code to <strong>{{ userEmail }}</strong>. Enter it below to continue.</p>
+
+  <mat-form-field>
+    <mat-label>Verification code</mat-label>
+    <input matInput [(ngModel)]="code" name="code" maxlength="6" />
+  </mat-form-field>
+
+  @if (errorMessage()) {
+    <p class="error">{{ errorMessage() }}</p>
+  }
+  @if (resendMessage()) {
+    <p class="success">{{ resendMessage() }}</p>
+  }
+
+  <button mat-raised-button color="primary" (click)="onVerify()">Verify</button>
+  <button mat-button (click)="onResend()">Resend code</button>
+</div>

@@ -1,0 +1,15 @@
+.signup-container {
+  max-width: 320px;
+  margin: 64px auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  form {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .error { color: #d9534f; font-size: 14px; }
+}

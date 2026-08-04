@@ -1,0 +1,30 @@
+<div class="signup-container">
+  <h2>Create your account</h2>
+
+  @if (errorMessage() && !inviteToken) {
+    <p class="error">{{ errorMessage() }}</p>
+  } @else {
+    <form (ngSubmit)="onSubmit()">
+      <mat-form-field>
+        <mat-label>First name</mat-label>
+        <input matInput [(ngModel)]="firstName" name="firstName" required />
+      </mat-form-field>
+
+      <mat-form-field>
+        <mat-label>Last name</mat-label>
+        <input matInput [(ngModel)]="lastName" name="lastName" required />
+      </mat-form-field>
+
+      <mat-form-field>
+        <mat-label>Password</mat-label>
+        <input matInput type="password" [(ngModel)]="password" name="password" required />
+      </mat-form-field>
+
+      @if (errorMessage()) {
+        <p class="error">{{ errorMessage() }}</p>
+      }
+
+      <button mat-raised-button color="primary" type="submit">Create account</button>
+    </form>
+  }
+</div>

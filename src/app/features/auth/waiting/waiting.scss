@@ -1,0 +1,11 @@
+.waiting-container {
+  max-width: 360px;
+  margin: 64px auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: center;
+
+  .error { color: #d9534f; font-size: 14px; }
+  .success { color: #2e7d32; font-size: 14px; }
+}
