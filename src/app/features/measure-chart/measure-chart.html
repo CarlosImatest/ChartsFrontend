@@ -1,13 +1,41 @@
-<mat-form-field>
-  <mat-label>Pick chart type</mat-label>
-  <mat-select (selectionChange)="onChartSelect($event.value)">
-    @for (type of chartTypes; track type) {
-      <mat-option [value]="type">{{ type }}</mat-option>
-    }
-  </mat-select>
-</mat-form-field>
+<div class="chart-meta">
+  <mat-form-field>
+    <mat-label>Film type</mat-label>
+    <input matInput [(ngModel)]="filmType" name="filmType" />
+  </mat-form-field>
+
+  <mat-form-field>
+    <mat-label>Pick chart type</mat-label>
+    <mat-select (selectionChange)="onChartSelect($event.value)">
+      @for (type of chartTypes; track type) {
+        <mat-option [value]="type">{{ type }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+</div>
 
 @if (selectedChart()) {
+
+  <div class="recent-charts">
+    <h4>Recent {{ selectedChart() }} charts</h4>
+
+    @if (loadingRecent()) {
+      <p class="hint">Loading…</p>
+    } @else if (recentCharts().length === 0) {
+      <p class="hint">No previous charts of this type yet.</p>
+    } @else {
+      @for (chart of recentCharts(); track chart.id) {
+        <div class="recent-chart-row">
+          <span class="recent-chart-label">{{ chart.name }}:</span>
+          @for (layer of chart.layers; track layer.name; let last = $last) {
+            <span class="layer-name">{{ layer.name }}</span>@if (!last) {, }
+          }
+          <span class="layer-name final">→ {{ chart.final_layer.name }}</span>
+        </div>
+      }
+    }
+  </div>
+
   <table class="chart-table">
     <thead>
       <tr>
@@ -70,4 +98,11 @@
   }
 </tbody>
   </table>
+  @if (saveError()) {
+    <p class="error">{{ saveError() }}</p>
+  }
+
+  <button mat-raised-button color="primary" [disabled]="saving()" (click)="saveChart()">
+    {{ saving() ? 'Saving…' : 'Save chart' }}
+  </button>
 }

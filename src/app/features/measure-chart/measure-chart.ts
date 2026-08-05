@@ -1,14 +1,20 @@
-import { Component, signal, computed } from '@angular/core';
+import { Component, signal, computed, inject } from '@angular/core';
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatButtonModule } from '@angular/material/button';
+import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
+import { ChartService } from '../../core/services/chart.service';
 import { ChartType } from '../../shared/models/chart.model';
 import { CHART_PRESETS } from '../../shared/models/chart-preset.model';
+import { ChartResponse } from '../../shared/models/chart.model';
 
 interface EditableLayer {
   name: string;
   values: (number | null)[];
   activeStart: number;
-  activeEnd: number; // exclusive
+  activeEnd: number;
 }
 
 const TRAILING_LABELS = ['Dmax-Dmin', 'Decibels'];
@@ -16,16 +22,33 @@ const TRAILING_LABELS = ['Dmax-Dmin', 'Decibels'];
 @Component({
   selector: 'app-measure-chart',
   standalone: true,
-  imports: [MatFormFieldModule, MatSelectModule],
+  imports: [MatFormFieldModule, MatSelectModule, MatInputModule, MatButtonModule, FormsModule],
   templateUrl: './measure-chart.html',
   styleUrl: './measure-chart.scss',
 })
 export class MeasureChart {
+  private chartService = inject(ChartService);
+  private router = inject(Router);
+
   chartTypes = Object.values(ChartType);
 
   selectedChart = signal<ChartType | null>(null);
   layers = signal<EditableLayer[]>([]);
   finalLayer = signal<EditableLayer | null>(null);
+
+  // New — top-level metadata the API requires but the grid alone
+  // doesn't capture. Plain component properties (not signals) since
+  // they're simple two-way ngModel bindings, same pattern as the
+  // login/register forms.
+  filmType = '';
+
+  saving = signal(false);
+  saveError = signal<string | null>(null);
+
+  // New — last few charts of the currently selected type, shown as a
+  // quick reference so measurements stay consistently named/ordered.
+  recentCharts = signal<ChartResponse[]>([]);
+  loadingRecent = signal(false);
 
   totalRows = computed(() => {
     const type = this.selectedChart();
@@ -39,7 +62,6 @@ export class MeasureChart {
 
   isComputedFinal = computed(() => this.layers().length > 0);
 
-  // Row-wise sums (raw, before the last-two-rows override)
   private summedValues = computed<(number | null)[]>(() => {
     const layers = this.layers();
     const totalRows = this.totalRows();
@@ -86,8 +108,9 @@ export class MeasureChart {
     return sums;
   });
 
-  onChartSelect(value: ChartType): void {
+   onChartSelect(value: ChartType): void {
     this.selectedChart.set(value);
+    this.saveError.set(null);
 
     const preset = CHART_PRESETS[value];
     const totalRows = preset.finalLayerRowCount - 1;
@@ -111,6 +134,30 @@ export class MeasureChart {
       values: Array(totalRows).fill(null),
       activeStart: 0,
       activeEnd: totalRows
+    });
+
+    this.loadRecentCharts(value);
+  }
+
+  
+  /**
+   * Fetches all charts of this type and keeps just the most recent 3
+   * (list order reflects insertion order, since we don't currently
+   * sort or paginate on the backend — good enough for a "what did I
+   * name things last time" reference, but not a guaranteed ordering
+   * if the backend ever adds sorting/filtering later).
+   */
+  loadRecentCharts(type: ChartType): void {
+    this.loadingRecent.set(true);
+    this.chartService.listCharts(type).subscribe({
+      next: (charts) => {
+        this.recentCharts.set(charts.slice(-3).reverse());
+        this.loadingRecent.set(false);
+      },
+      error: () => {
+        this.recentCharts.set([]);
+        this.loadingRecent.set(false);
+      }
     });
   }
 
@@ -159,13 +206,71 @@ export class MeasureChart {
       return { ...fl, values };
     });
   }
-  //gives an id based on its col and row so when ENTER it looks for the id
-  //and moves to the next cell/row
+
   onEnterKey(event: Event, colId: string, row: number): void {
-  event.preventDefault();
-  const nextInput = document.getElementById(`cell-${colId}-${row + 1}`);
-  if (nextInput) {
-    (nextInput as HTMLInputElement).focus();
+    event.preventDefault();
+    const nextInput = document.getElementById(`cell-${colId}-${row + 1}`);
+    if (nextInput) {
+      (nextInput as HTMLInputElement).focus();
+    }
   }
+
+  /**
+   * Assembles everything currently on screen into a ChartCreate and
+   * POSTs it. Empty cells (null) are sent as 0 — this matches the
+   * placeholder "0" hint shown in each cell, so an untouched cell and
+   * an explicitly-zeroed cell are treated the same way. If that's not
+   * the right assumption for real measurement data, this is the one
+   * spot to change (e.g. block save instead, if any active cell is
+   * still null).
+   */
+  saveChart(): void {
+  const type = this.selectedChart();
+  if (!type) {
+    this.saveError.set('Pick a chart type first.');
+    return;
+  }
+
+  const finalLayerName = this.finalLayer()?.name?.trim();
+
+  if (!finalLayerName) {
+    this.saveError.set('Final layer name is required (this is used as the chart name).');
+    return;
+  }
+  if (!this.filmType.trim()) {
+    this.saveError.set('Film type is required.');
+    return;
+  }
+
+  this.saveError.set(null);
+  this.saving.set(true);
+
+  const layersPayload = this.layers().map(layer => ({
+    name: layer.name,
+    values: layer.values.slice(layer.activeStart, layer.activeEnd)
+      .map(v => v ?? 0)
+  }));
+
+  const finalLayerPayload = {
+    name: finalLayerName,
+    values: this.finalValues().map(v => v ?? 0)
+  };
+
+  this.chartService.createChart({
+    chart_type: type,
+    name: finalLayerName,   // chart's top-level name = final layer's name
+    film_type: this.filmType,
+    layers: layersPayload,
+    final_layer: finalLayerPayload
+  }).subscribe({
+    next: () => {
+      this.saving.set(false);
+      this.router.navigate(['/charts']);
+    },
+    error: (err) => {
+      this.saving.set(false);
+      this.saveError.set(err?.error?.detail ?? 'Failed to save chart.');
+    }
+  });
 }
 }
