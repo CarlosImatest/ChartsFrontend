@@ -7,7 +7,7 @@ import { Layer } from '../models/chart.model';
  * = name, rest = values).
  */
 export function layerToCsv(layer: Layer): string {
-  const rows = [layer.name, ...layer.values.map(v => String(v))];
+  const rows = [...layer.values.map(v => String(v))];
   return rows.join('\n');
 }
 

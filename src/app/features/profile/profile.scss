@@ -1,0 +1,20 @@
+.profile-container {
+  max-width: 360px;
+  margin: 64px auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+
+  .info p {
+    margin: 4px 0;
+  }
+
+  .change-password form {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .error { color: #d9534f; font-size: 14px; }
+  .success { color: #2e7d32; font-size: 14px; }
+}

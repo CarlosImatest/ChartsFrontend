@@ -4,6 +4,7 @@
   <nav>
     <a routerLink="/charts">Charts</a>
     <a routerLink="/measure-chart">Measure Chart</a>
+    <a routerLink="/profile">Profile</a>
     @if (authService.hasMinimumRole(UserRole.ADMIN)) {
       <a routerLink="/register">Add User Directly</a>
       <a routerLink="/invite">Invite User</a>

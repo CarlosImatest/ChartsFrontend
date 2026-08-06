@@ -7,6 +7,8 @@ import {
   RegisterWithInviteRequest, VerifyEmailRequest
 } from '../../shared/models/user.model';
 
+import { ChangePasswordRequest} from '../../shared/models/auth.model'
+
 const TOKEN_KEY = 'auth_token';
 
 const ROLE_RANK: Record<UserRole, number> = {
@@ -74,4 +76,8 @@ export class AuthService {
     if (!user) return false;
     return ROLE_RANK[user.role] >= ROLE_RANK[minimum];
   }
+
+  changePassword(payload: ChangePasswordRequest) {
+  return this.http.post<{ detail: string }>(`${this.baseUrl}/change-password`, payload);
+}
 }

@@ -45,5 +45,11 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () =>
       import('./features/measure-chart/measure-chart').then(m => m.MeasureChart)
-  }
+  },
+
+  {
+  path: 'profile',
+  canActivate: [authGuard],
+  loadComponent: () => import('./features/profile/profile').then(m => m.Profile)
+}
 ];
