@@ -4,18 +4,23 @@
     <input matInput [(ngModel)]="filmType" name="filmType" />
   </mat-form-field>
 
-  <mat-form-field>
-    <mat-label>Pick chart type</mat-label>
-    <mat-select (selectionChange)="onChartSelect($event.value)">
-      @for (type of chartTypes; track type) {
-        <mat-option [value]="type">{{ type }}</mat-option>
-      }
-    </mat-select>
-  </mat-form-field>
+  @if (!isEditMode()) {
+    <mat-form-field>
+      <mat-label>Pick chart type</mat-label>
+      <mat-select (selectionChange)="onChartSelect($event.value)">
+        @for (type of chartTypes; track type) {
+          <mat-option [value]="type">{{ type }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  } @else {
+    <p class="edit-mode-label">Editing {{ selectedChart() }} chart</p>
+  }
 </div>
 
-@if (selectedChart()) {
-
+@if (loadingExisting()) {
+  <p>Loading chart…</p>
+} @else if (selectedChart()) {
   <div class="recent-charts">
     <h4>Recent {{ selectedChart() }} charts</h4>
 
@@ -103,6 +108,6 @@
   }
 
   <button mat-raised-button color="primary" [disabled]="saving()" (click)="saveChart()">
-    {{ saving() ? 'Saving…' : 'Save chart' }}
+    {{ saving() ? 'Saving…' : (isEditMode() ? 'Update chart' : 'Save chart') }}
   </button>
 }

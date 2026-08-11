@@ -22,8 +22,13 @@
     <th mat-header-cell *matHeaderCellDef></th>
     <td mat-cell *matCellDef="let chart">
       <a [routerLink]="['/charts', selectedType(), chart.id]">View</a>
+
       @if (authService.hasMinimumRole(UserRole.EDITOR)) {
         <button mat-button (click)="downloadChart(chart)">Download CSV</button>
+        <button mat-button (click)="editChart(chart)">Edit</button>
+        <button mat-button color="warn" [disabled]="deletingId() === chart.id" (click)="deleteChart(chart)">
+          {{ deletingId() === chart.id ? 'Deleting…' : 'Delete' }}
+        </button>
       }
     </td>
   </ng-container>

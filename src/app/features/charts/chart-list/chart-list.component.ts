@@ -4,12 +4,12 @@ import { MatTableModule } from '@angular/material/table';
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatButtonModule } from '@angular/material/button';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { ChartService } from '../../../core/services/chart.service';
-import { ChartResponse, ChartType } from '../../../shared/models/chart.model';
-import { layerToCsv, sanitizeFilename, downloadCsv } from '../../../shared/utils/csv.util';
 import { AuthService } from '../../../core/services/auth.service';
+import { ChartResponse, ChartType } from '../../../shared/models/chart.model';
 import { UserRole } from '../../../shared/models/user.model';
+import { layerToCsv, sanitizeFilename, downloadCsv } from '../../../shared/utils/csv.util';
 
 @Component({
   selector: 'app-chart-list',
@@ -19,14 +19,16 @@ import { UserRole } from '../../../shared/models/user.model';
 })
 export class ChartListComponent implements OnInit {
   private chartService = inject(ChartService);
-  authService = inject(AuthService);  // public — template needs to read it
-  UserRole = UserRole;               // expose enum to the template
-
+  private router = inject(Router);
+  authService = inject(AuthService);
+  UserRole = UserRole;
 
   chartTypes = Object.values(ChartType);
   selectedType = signal<ChartType>(ChartType.CRC);
   charts = signal<ChartResponse[]>([]);
   displayedColumns = ['name', 'film_type', 'actions'];
+
+  deletingId = signal<string | null>(null);
 
   ngOnInit() {
     this.loadCharts();
@@ -44,15 +46,42 @@ export class ChartListComponent implements OnInit {
     });
   }
 
-  /**
-   * Downloads only the final layer, as CSV, named after the final
-   * layer's own name (not the chart's name) — per what was asked for.
-   * Uses the ChartResponse already sitting in `charts()` — no extra
-   * API call, since list responses already include final_layer in full.
-   */
   downloadChart(chart: ChartResponse): void {
-    const csv = layerToCsv(chart.final_layer);
+    const csv = layerToCsv(chart.final_layer, this.selectedType());
     const filename = `${sanitizeFilename(chart.final_layer.name)}.csv`;
     downloadCsv(filename, csv);
+  }
+
+  /**
+   * Navigates to Measure Chart in edit mode. The chart type + id go
+   * in the URL as route params (see app.routes.ts), which
+   * measure-chart.ts reads on init to know it should load + PATCH
+   * instead of starting blank + POST.
+   */
+  editChart(chart: ChartResponse): void {
+    this.router.navigate(['/measure-chart', this.selectedType(), chart.id]);
+  }
+
+  /**
+   * Simple native confirm() dialog — not a styled Material dialog,
+   * to keep this straightforward. Swap for MatDialog later if you
+   * want a nicer-looking confirmation.
+   */
+  deleteChart(chart: ChartResponse): void {
+    const confirmed = confirm(`Delete "${chart.name}"? This cannot be undone.`);
+    if (!confirmed) return;
+
+    this.deletingId.set(chart.id);
+
+    this.chartService.deleteChart(this.selectedType(), chart.id).subscribe({
+      next: () => {
+        this.deletingId.set(null);
+        this.charts.update(list => list.filter(c => c.id !== chart.id));
+      },
+      error: (err) => {
+        this.deletingId.set(null);
+        alert(err?.error?.detail ?? 'Failed to delete chart.');
+      }
+    });
   }
 }

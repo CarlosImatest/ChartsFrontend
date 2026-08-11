@@ -30,48 +30,44 @@ export class ChartDetailComponent implements OnInit {
   // 2. Pivot the data into rows, adding top-offset padding to the middle layers
   // Pivot the data into rows, adding top-offset padding to the middle layers
   tableRows = computed(() => {
-    const c = this.chart();
-    if (!c) return [];
+  const c = this.chart();
+  if (!c || !c.final_layer) return [];
 
-    const layer1 = c.layers[0];
-    const middleLayers = c.layers.slice(1);
-    const finalLayer = c.final_layer;
+  const middleLayers = c.layers.slice(1);
+  const finalLayer = c.final_layer;
+  const layer1 = c.layers[0];
 
-    if (!layer1 || !finalLayer) return [];
+  // LDR-style charts have no regular layers at all — final_layer is
+  // the only column that exists. Build rows directly from it instead.
+  if (!layer1) {
+    return finalLayer.values.map(v => [v]);
+  }
 
-    const layer1Length = layer1.values.length;
-    
-    // CHANGE HERE: Allow the matrix to hold both strings (for '') and numbers
-    const columns: (string | number)[][] = [];
+  const layer1Length = layer1.values.length;
+  const columns: (string | number)[][] = [];
 
-    // Column 1: Layer 1
-    columns.push([...layer1.values]);
+  columns.push([...layer1.values]);
 
-    // Columns 2+: Middle Layers (Padded at the top to match Layer 1's baseline)
-    middleLayers.forEach(layer => {
-      const diff = layer1Length - layer.values.length;
-      if (diff > 0) {
-        // Creates the empty space offset at the top of the column
-        const paddedValues = [...Array(diff).fill(''), ...layer.values];
-        columns.push(paddedValues);
-      } else {
-        columns.push([...layer.values]);
-      }
-    });
-
-    // Last Column: Final Layer values
-    columns.push([...finalLayer.values]);
-
-    // Find the total rows based on the longest column overall (usually the final layer)
-    const maxRows = Math.max(...columns.map(col => col.length), 0);
-
-    // allow rows matrix to accept strings or numbers
-    const rows: (string | number)[][] = [];
-    for (let i = 0; i < maxRows; i++) {
-      const rowData = columns.map(col => col[i] !== undefined ? col[i] : '');
-      rows.push(rowData);
+  middleLayers.forEach(layer => {
+    const diff = layer1Length - layer.values.length;
+    if (diff > 0) {
+      const paddedValues = [...Array(diff).fill(''), ...layer.values];
+      columns.push(paddedValues);
+    } else {
+      columns.push([...layer.values]);
     }
-    return rows;
+  });
+
+  columns.push([...finalLayer.values]);
+
+  const maxRows = Math.max(...columns.map(col => col.length), 0);
+
+  const rows: (string | number)[][] = [];
+  for (let i = 0; i < maxRows; i++) {
+    const rowData = columns.map(col => col[i] !== undefined ? col[i] : '');
+    rows.push(rowData);
+  }
+  return rows;
   });
 
   ngOnInit() {

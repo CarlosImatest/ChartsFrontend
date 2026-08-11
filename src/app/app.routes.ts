@@ -48,8 +48,23 @@ export const routes: Routes = [
   },
 
   {
-  path: 'profile',
-  canActivate: [authGuard],
-  loadComponent: () => import('./features/profile/profile').then(m => m.Profile)
-}
+    path: 'profile',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/profile/profile').then(m => m.Profile)
+  },
+
+  {
+    path: 'measure-chart',
+    canActivate: [roleGuard(UserRole.EDITOR)],
+    loadComponent: () =>
+      import('./features/measure-chart/measure-chart').then(m => m.MeasureChart)
+  },
+  {
+    // Edit mode — same component, chart type + id come from the URL.
+    path: 'measure-chart/:chartType/:chartId',
+    canActivate: [roleGuard(UserRole.EDITOR)],
+    loadComponent: () =>
+      import('./features/measure-chart/measure-chart').then(m => m.MeasureChart)
+  }
 ];
+

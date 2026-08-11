@@ -1,14 +1,13 @@
-import { Component, signal, computed, inject } from '@angular/core';
+import { Component, signal, computed, inject, OnInit } from '@angular/core';
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { ChartService } from '../../core/services/chart.service';
-import { ChartType } from '../../shared/models/chart.model';
+import { ChartType, ChartResponse, Layer } from '../../shared/models/chart.model';
 import { CHART_PRESETS } from '../../shared/models/chart-preset.model';
-import { ChartResponse } from '../../shared/models/chart.model';
 
 interface EditableLayer {
   name: string;
@@ -26,9 +25,10 @@ const TRAILING_LABELS = ['Dmax-Dmin', 'Decibels'];
   templateUrl: './measure-chart.html',
   styleUrl: './measure-chart.scss',
 })
-export class MeasureChart {
+export class MeasureChart implements OnInit {
   private chartService = inject(ChartService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
 
   chartTypes = Object.values(ChartType);
 
@@ -36,19 +36,18 @@ export class MeasureChart {
   layers = signal<EditableLayer[]>([]);
   finalLayer = signal<EditableLayer | null>(null);
 
-  // New — top-level metadata the API requires but the grid alone
-  // doesn't capture. Plain component properties (not signals) since
-  // they're simple two-way ngModel bindings, same pattern as the
-  // login/register forms.
   filmType = '';
-
   saving = signal(false);
   saveError = signal<string | null>(null);
 
-  // New — last few charts of the currently selected type, shown as a
-  // quick reference so measurements stay consistently named/ordered.
   recentCharts = signal<ChartResponse[]>([]);
   loadingRecent = signal(false);
+
+  // Edit-mode state — null means "creating new", set means "editing existing"
+  editingChartId = signal<string | null>(null);
+  loadingExisting = signal(false);
+
+  isEditMode = computed(() => this.editingChartId() !== null);
 
   totalRows = computed(() => {
     const type = this.selectedChart();
@@ -108,11 +107,78 @@ export class MeasureChart {
     return sums;
   });
 
-   onChartSelect(value: ChartType): void {
-    this.selectedChart.set(value);
-    this.saveError.set(null);
+  ngOnInit(): void {
+    const chartType = this.route.snapshot.paramMap.get('chartType') as ChartType | null;
+    const chartId = this.route.snapshot.paramMap.get('chartId');
 
-    const preset = CHART_PRESETS[value];
+    if (chartType && chartId) {
+      this.loadExistingChart(chartType, chartId);
+    }
+  }
+
+  /**
+   * Edit mode entry point. Builds the same grid shape onChartSelect
+   * would (via buildGridForType), then overwrites it with the
+   * chart's real saved values instead of leaving cells blank.
+   */
+  private loadExistingChart(chartType: ChartType, chartId: string): void {
+    this.loadingExisting.set(true);
+    this.editingChartId.set(chartId);
+    this.selectedChart.set(chartType);
+
+    this.buildGridForType(chartType);
+    this.loadRecentCharts(chartType);
+
+    this.chartService.getChart(chartType, chartId).subscribe({
+      next: (chart) => {
+        this.filmType = chart.film_type;
+        this.populateGridFromChart(chart);
+        this.loadingExisting.set(false);
+      },
+      error: () => {
+        this.saveError.set('Failed to load chart for editing.');
+        this.loadingExisting.set(false);
+      }
+    });
+  }
+
+  /**
+   * Fills the already-shaped grid (built by buildGridForType) with
+   * real saved values. Each real layer's values are shorter than the
+   * grid's total rows (grid is padded to align columns) — we place
+   * them back at the same activeStart/activeEnd offset the grid
+   * already computed, so a layer-2-style bottom-aligned column lands
+   * in the right rows rather than at the top.
+   */
+  private populateGridFromChart(chart: ChartResponse): void {
+    this.layers.update(gridLayers =>
+      gridLayers.map((gridLayer, idx) => {
+        const savedLayer: Layer | undefined = chart.layers[idx];
+        if (!savedLayer) return gridLayer;
+
+        const values = [...gridLayer.values];
+        savedLayer.values.forEach((v, i) => {
+          values[gridLayer.activeStart + i] = v;
+        });
+
+        return { ...gridLayer, name: savedLayer.name, values };
+      })
+    );
+
+    this.finalLayer.update(fl => {
+      if (!fl) return fl;
+      return {
+        ...fl,
+        name: chart.final_layer.name,
+        values: [...chart.final_layer.values]
+      };
+    });
+  }
+
+  /** Shared grid-shaping logic — used by both onChartSelect (new chart)
+   *  and loadExistingChart (edit mode), so the two stay in sync. */
+  private buildGridForType(type: ChartType): void {
+    const preset = CHART_PRESETS[type];
     const totalRows = preset.finalLayerRowCount - 1;
 
     const newLayers: EditableLayer[] = preset.layerRowCounts.map((rowCount, idx) => {
@@ -135,18 +201,20 @@ export class MeasureChart {
       activeStart: 0,
       activeEnd: totalRows
     });
+  }
 
+  onChartSelect(value: ChartType): void {
+    // Chart type shouldn't change mid-edit — this handler only fires
+    // from the dropdown, which is hidden entirely in edit mode (see
+    // template), so this guard is a belt-and-suspenders safety net.
+    if (this.isEditMode()) return;
+
+    this.selectedChart.set(value);
+    this.saveError.set(null);
+    this.buildGridForType(value);
     this.loadRecentCharts(value);
   }
 
-  
-  /**
-   * Fetches all charts of this type and keeps just the most recent 3
-   * (list order reflects insertion order, since we don't currently
-   * sort or paginate on the backend — good enough for a "what did I
-   * name things last time" reference, but not a guaranteed ordering
-   * if the backend ever adds sorting/filtering later).
-   */
   loadRecentCharts(type: ChartType): void {
     this.loadingRecent.set(true);
     this.chartService.listCharts(type).subscribe({
@@ -215,62 +283,75 @@ export class MeasureChart {
     }
   }
 
-  /**
-   * Assembles everything currently on screen into a ChartCreate and
-   * POSTs it. Empty cells (null) are sent as 0 — this matches the
-   * placeholder "0" hint shown in each cell, so an untouched cell and
-   * an explicitly-zeroed cell are treated the same way. If that's not
-   * the right assumption for real measurement data, this is the one
-   * spot to change (e.g. block save instead, if any active cell is
-   * still null).
-   */
   saveChart(): void {
-  const type = this.selectedChart();
-  if (!type) {
-    this.saveError.set('Pick a chart type first.');
-    return;
-  }
-
-  const finalLayerName = this.finalLayer()?.name?.trim();
-
-  if (!finalLayerName) {
-    this.saveError.set('Final layer name is required (this is used as the chart name).');
-    return;
-  }
-  if (!this.filmType.trim()) {
-    this.saveError.set('Film type is required.');
-    return;
-  }
-
-  this.saveError.set(null);
-  this.saving.set(true);
-
-  const layersPayload = this.layers().map(layer => ({
-    name: layer.name,
-    values: layer.values.slice(layer.activeStart, layer.activeEnd)
-      .map(v => v ?? 0)
-  }));
-
-  const finalLayerPayload = {
-    name: finalLayerName,
-    values: this.finalValues().map(v => v ?? 0)
-  };
-
-  this.chartService.createChart({
-    chart_type: type,
-    name: finalLayerName,   // chart's top-level name = final layer's name
-    film_type: this.filmType,
-    layers: layersPayload,
-    final_layer: finalLayerPayload
-  }).subscribe({
-    next: () => {
-      this.saving.set(false);
-      this.router.navigate(['/charts']);
-    },
-    error: (err) => {
-      this.saving.set(false);
-      this.saveError.set(err?.error?.detail ?? 'Failed to save chart.');
+    const type = this.selectedChart();
+    if (!type) {
+      this.saveError.set('Pick a chart type first.');
+      return;
     }
-  });
-}
+
+    const finalLayerName = this.finalLayer()?.name?.trim();
+
+    if (!finalLayerName) {
+      this.saveError.set('Final layer name is required (this is used as the chart name).');
+      return;
+    }
+    if (!this.filmType.trim()) {
+      this.saveError.set('Film type is required.');
+      return;
+    }
+
+    this.saveError.set(null);
+    this.saving.set(true);
+
+    const layersPayload = this.layers().map(layer => ({
+      name: layer.name,
+      values: layer.values.slice(layer.activeStart, layer.activeEnd)
+        .map(v => v ?? 0)
+    }));
+
+    const finalLayerPayload = {
+      name: finalLayerName,
+      values: this.finalValues().map(v => v ?? 0)
+    };
+
+    const chartId = this.editingChartId();
+
+    if (chartId) {
+      // Edit mode — PATCH the existing chart.
+      this.chartService.updateChart(type, chartId, {
+        name: finalLayerName,
+        film_type: this.filmType,
+        layers: layersPayload,
+        final_layer: finalLayerPayload
+      }).subscribe({
+        next: () => {
+          this.saving.set(false);
+          this.router.navigate(['/charts']);
+        },
+        error: (err) => {
+          this.saving.set(false);
+          this.saveError.set(err?.error?.detail ?? 'Failed to update chart.');
+        }
+      });
+    } else {
+      // Create mode — POST a new chart.
+      this.chartService.createChart({
+        chart_type: type,
+        name: finalLayerName,
+        film_type: this.filmType,
+        layers: layersPayload,
+        final_layer: finalLayerPayload
+      }).subscribe({
+        next: () => {
+          this.saving.set(false);
+          this.router.navigate(['/charts']);
+        },
+        error: (err) => {
+          this.saving.set(false);
+          this.saveError.set(err?.error?.detail ?? 'Failed to save chart.');
+        }
+      });
+    }
+  }
 }

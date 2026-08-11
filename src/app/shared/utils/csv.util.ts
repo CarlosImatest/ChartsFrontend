@@ -1,4 +1,6 @@
-import { Layer } from '../models/chart.model';
+import { ChartType, Layer } from '../models/chart.model';
+import { ChartListComponent } from '../../features/charts/chart-list/chart-list.component';
+
 
 /**
  * Builds a CSV matching the original spreadsheet convention: first
@@ -6,8 +8,16 @@ import { Layer } from '../models/chart.model';
  * how layers were structured in the source Google Sheets (first cell
  * = name, rest = values).
  */
-export function layerToCsv(layer: Layer): string {
+export function layerToCsv(layer: Layer, chartType: ChartType): string {
+
+  //need to test if this works of VISNIR
   const rows = [...layer.values.map(v => String(v))];
+  if (chartType !== ChartType.VISNIR) {
+    rows.splice(-2); // remove min/max rows
+  }
+
+  console.log(chartType);
+
   return rows.join('\n');
 }
 
