@@ -6,8 +6,17 @@
     }
   </mat-select>
 </mat-form-field>
+<mat-form-field>
+  <mat-label>Search by name</mat-label>
+  <input
+    matInput
+    [value]="searchTerm()"
+    (input)="searchTerm.set($any($event.target).value)"
+    placeholder="Type to filter…"
+  />
+</mat-form-field>
 
-<table mat-table [dataSource]="charts()">
+<table mat-table [dataSource]="filteredCharts()">
   <ng-container matColumnDef="name">
     <th mat-header-cell *matHeaderCellDef>Name</th>
     <td mat-cell *matCellDef="let chart">{{ chart.name }}</td>

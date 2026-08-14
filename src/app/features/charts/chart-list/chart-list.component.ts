@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatTableModule } from '@angular/material/table';
 import { MatSelectModule } from '@angular/material/select';
@@ -10,11 +10,12 @@ import { AuthService } from '../../../core/services/auth.service';
 import { ChartResponse, ChartType } from '../../../shared/models/chart.model';
 import { UserRole } from '../../../shared/models/user.model';
 import { layerToCsv, sanitizeFilename, downloadCsv } from '../../../shared/utils/csv.util';
+import { MatInputModule } from '@angular/material/input';
 
 @Component({
   selector: 'app-chart-list',
   standalone: true,
-  imports: [CommonModule, MatTableModule, MatSelectModule, MatFormFieldModule, MatButtonModule, RouterLink],
+  imports: [CommonModule, MatTableModule, MatSelectModule, MatFormFieldModule, MatButtonModule, MatInputModule, RouterLink],
   templateUrl: './chart-list.component.html'
 })
 export class ChartListComponent implements OnInit {
@@ -84,4 +85,19 @@ export class ChartListComponent implements OnInit {
       }
     });
   }
+  
+  searchTerm = signal('');
+
+  /**
+   * Client-side filter over whatever's already loaded for the
+   * selected chart type. Case-insensitive substring match, same
+   * semantics as the backend's search_charts, so behavior stays
+   * consistent if this ever moves server-side later.
+   */
+  filteredCharts = computed(() => {
+    const term = this.searchTerm().trim().toLowerCase();
+    if (!term) return this.charts();
+    return this.charts().filter(c => c.name.toLowerCase().includes(term));
+  });
+  
 }
