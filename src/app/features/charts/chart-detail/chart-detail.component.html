@@ -8,22 +8,20 @@
   <p>Film type: {{ c.film_type }}</p>
 
   <h3>Layer Structure: Vertical Columns</h3>
-  
+
   <table class="chart-table">
     <thead>
       <tr>
-        <!-- 1. Render Headers from allLayers() -->
-        @for (layer of allLayers(); track layer.name) {
+        @for (layer of allLayers(); track $index) {
           <th>{{ layer.name }}</th>
         }
       </tr>
     </thead>
     <tbody>
-      <!-- 2. Render pre-pivoted Rows from tableRows() -->
       @for (row of tableRows(); track $index) {
         <tr>
           @for (cell of row; track $index) {
-            <td>{{ cell }}</td>
+            <td [class.label-cell]="cell === 'Dmax-Dmin' || cell === 'Decibels'">{{ cell }}</td>
           }
         </tr>
       }

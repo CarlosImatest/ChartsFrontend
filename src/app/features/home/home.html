@@ -10,6 +10,9 @@
       <a routerLink="/invite">Invite User</a>
     }
   </nav>
+  <button (click)="themeService.toggle()">
+  {{ themeService.theme() === 'light' ? '🌙 Dark mode' : '☀️ Light mode' }}
+  </button>
 
   <button (click)="authService.logout()">Log out</button>
 </div>

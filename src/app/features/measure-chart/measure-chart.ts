@@ -16,6 +16,11 @@ interface EditableLayer {
   activeEnd: number;
 }
 
+interface ActiveCell {
+  colId: string;
+  row: number;
+}
+
 const TRAILING_LABELS = ['Dmax-Dmin', 'Decibels'];
 
 @Component({
@@ -43,11 +48,12 @@ export class MeasureChart implements OnInit {
   recentCharts = signal<ChartResponse[]>([]);
   loadingRecent = signal(false);
 
-  // Edit-mode state — null means "creating new", set means "editing existing"
   editingChartId = signal<string | null>(null);
   loadingExisting = signal(false);
-
   isEditMode = computed(() => this.editingChartId() !== null);
+
+  /** Currently focused cell — drives the highlight styling in the template. */
+  activeCell = signal<ActiveCell | null>(null);
 
   totalRows = computed(() => {
     const type = this.selectedChart();
@@ -60,6 +66,17 @@ export class MeasureChart implements OnInit {
   );
 
   isComputedFinal = computed(() => this.layers().length > 0);
+
+  /**
+   * Ordered list of column ids that actually contain an <input> —
+   * used to drive left/right arrow navigation. Layer columns are
+   * always navigable; the final column only is when it's directly
+   * editable (LDR-style charts with no other layers).
+   */
+  navigableColumns = computed<string[]>(() => {
+    const layerIds = this.layers().map((_, i) => `layer-${i}`);
+    return this.isComputedFinal() ? layerIds : [...layerIds, 'final'];
+  });
 
   private summedValues = computed<(number | null)[]>(() => {
     const layers = this.layers();
@@ -116,11 +133,6 @@ export class MeasureChart implements OnInit {
     }
   }
 
-  /**
-   * Edit mode entry point. Builds the same grid shape onChartSelect
-   * would (via buildGridForType), then overwrites it with the
-   * chart's real saved values instead of leaving cells blank.
-   */
   private loadExistingChart(chartType: ChartType, chartId: string): void {
     this.loadingExisting.set(true);
     this.editingChartId.set(chartId);
@@ -142,14 +154,6 @@ export class MeasureChart implements OnInit {
     });
   }
 
-  /**
-   * Fills the already-shaped grid (built by buildGridForType) with
-   * real saved values. Each real layer's values are shorter than the
-   * grid's total rows (grid is padded to align columns) — we place
-   * them back at the same activeStart/activeEnd offset the grid
-   * already computed, so a layer-2-style bottom-aligned column lands
-   * in the right rows rather than at the top.
-   */
   private populateGridFromChart(chart: ChartResponse): void {
     this.layers.update(gridLayers =>
       gridLayers.map((gridLayer, idx) => {
@@ -175,8 +179,6 @@ export class MeasureChart implements OnInit {
     });
   }
 
-  /** Shared grid-shaping logic — used by both onChartSelect (new chart)
-   *  and loadExistingChart (edit mode), so the two stay in sync. */
   private buildGridForType(type: ChartType): void {
     const preset = CHART_PRESETS[type];
     const totalRows = preset.finalLayerRowCount - 1;
@@ -204,13 +206,11 @@ export class MeasureChart implements OnInit {
   }
 
   onChartSelect(value: ChartType): void {
-    // Chart type shouldn't change mid-edit — this handler only fires
-    // from the dropdown, which is hidden entirely in edit mode (see
-    // template), so this guard is a belt-and-suspenders safety net.
     if (this.isEditMode()) return;
 
     this.selectedChart.set(value);
     this.saveError.set(null);
+    this.activeCell.set(null);
     this.buildGridForType(value);
     this.loadRecentCharts(value);
   }
@@ -275,13 +275,92 @@ export class MeasureChart implements OnInit {
     });
   }
 
-  onEnterKey(event: Event, colId: string, row: number): void {
-    event.preventDefault();
-    const nextInput = document.getElementById(`cell-${colId}-${row + 1}`);
-    if (nextInput) {
-      (nextInput as HTMLInputElement).focus();
+  // ---- Cell selection / navigation ----
+
+  setActiveCell(colId: string, row: number): void {
+    this.activeCell.set({ colId, row });
+  }
+
+  isActiveCell(colId: string, row: number): boolean {
+    const active = this.activeCell();
+    return !!active && active.colId === colId && active.row === row;
+  }
+
+  /** True if the given column/row actually has an editable input at all
+   *  (i.e. isn't a padded/inactive cell). Used by navigation to skip
+   *  over blank space rather than trying to focus a non-input cell. */
+  private isCellEditable(colId: string, row: number): boolean {
+    if (colId === 'final') {
+      return !this.isComputedFinal();
+    }
+    const idx = Number(colId.replace('layer-', ''));
+    const layer = this.layers()[idx];
+    return !!layer && this.isActive(layer, row);
+  }
+
+  private focusCell(colId: string, row: number): void {
+    const el = document.getElementById(`cell-${colId}-${row}`);
+
+    if (el instanceof HTMLInputElement) {
+      el.focus();
+
+      // Highlight the entire value
+      el.select();
     }
   }
+
+  private moveVertical(colId: string, row: number, direction: 1 | -1): void {
+    const totalRows = this.totalRows();
+    let r = row + direction;
+
+    while (r >= 0 && r < totalRows) {
+      if (this.isCellEditable(colId, r)) {
+        this.focusCell(colId, r);
+        return;
+      }
+      r += direction;
+    }
+    // Reached the top/bottom of this column — nothing to do, stay put.
+  }
+
+  private moveHorizontal(colId: string, row: number, direction: 1 | -1): void {
+    const columns = this.navigableColumns();
+    let i = columns.indexOf(colId) + direction;
+
+    while (i >= 0 && i < columns.length) {
+      if (this.isCellEditable(columns[i], row)) {
+        this.focusCell(columns[i], row);
+        return;
+      }
+      i += direction;
+    }
+  }
+
+  onCellKeydown(event: KeyboardEvent, colId: string, row: number): void {
+    switch (event.key) {
+      case 'ArrowDown':
+      case 'Enter':
+        event.preventDefault();
+        this.moveVertical(colId, row, 1);
+        break;
+      case 'ArrowUp':
+        event.preventDefault();
+        this.moveVertical(colId, row, -1);
+        break;
+      case 'ArrowRight':
+        event.preventDefault();
+        this.moveHorizontal(colId, row, 1);
+        break;
+      case 'ArrowLeft':
+        event.preventDefault();
+        this.moveHorizontal(colId, row, -1);
+        break;
+      // Any other key (typing digits, Tab, etc.) falls through to
+      // default browser/input behavior untouched.
+    }
+  }
+
+  // ---- Save ----
 
   saveChart(): void {
     const type = this.selectedChart();
@@ -318,7 +397,6 @@ export class MeasureChart implements OnInit {
     const chartId = this.editingChartId();
 
     if (chartId) {
-      // Edit mode — PATCH the existing chart.
       this.chartService.updateChart(type, chartId, {
         name: finalLayerName,
         film_type: this.filmType,
@@ -335,7 +413,6 @@ export class MeasureChart implements OnInit {
         }
       });
     } else {
-      // Create mode — POST a new chart.
       this.chartService.createChart({
         chart_type: type,
         name: finalLayerName,

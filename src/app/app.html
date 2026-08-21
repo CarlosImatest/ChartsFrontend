@@ -1,1 +1,11 @@
-<router-outlet />
+<header class="app-header">
+  <img
+    [src]="themeService.theme() === 'dark' ? '/logo/imatest_white_fullcolor.png' : '/logo/imatest_black_fullcolor.png'"
+    alt="Imatest"
+    class="app-logo"
+  />
+</header>
+
+<main>
+  <router-outlet />
+</main>
