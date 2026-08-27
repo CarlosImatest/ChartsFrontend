@@ -8,6 +8,8 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { ChartService } from '../../core/services/chart.service';
 import { ChartType, ChartResponse, Layer } from '../../shared/models/chart.model';
 import { CHART_PRESETS } from '../../shared/models/chart-preset.model';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 
 interface EditableLayer {
   name: string;
@@ -362,6 +364,64 @@ export class MeasureChart implements OnInit {
 
   // ---- Save ----
 
+  /**
+   * Validates all required fields are filled before even attempting a
+   * duplicate check or save. Returns a user-facing error string, or
+   * null if everything's valid.
+   */
+  private validateRequiredFields(): string | null {
+    const finalLayerName = this.finalLayer()?.name?.trim();
+
+    if (!finalLayerName) {
+      return 'Final layer name is required (this is used as the chart name).';
+    }
+    if (!this.filmType.trim()) {
+      return 'Film type is required.';
+    }
+
+    const unnamed = this.layers().findIndex(l => !l.name.trim());
+    if (unnamed !== -1) {
+      return `Layer ${unnamed + 1} name is required.`;
+    }
+
+    return null;
+  }
+
+  /**
+   * Checks the current chart's name (= final layer name) and every
+   * layer name against what's already saved for this chart type.
+   * When editing an existing chart, that chart's own record is
+   * excluded from the comparison — otherwise editing a chart without
+   * renaming anything would always "collide" with itself.
+   */
+  private checkDuplicate(type: ChartType): Observable<string | null> {
+    return this.chartService.listCharts(type).pipe(
+      map((charts) => {
+        const currentId = this.editingChartId();
+        const others = charts.filter(c => c.id !== currentId);
+
+        const finalLayerName = this.finalLayer()?.name?.trim() ?? '';
+        const enteredLayerNames = this.layers().map(l => l.name.trim());
+
+        const nameCollision = others.some(c => c.name === finalLayerName);
+        if (nameCollision) {
+          return `A chart named "${finalLayerName}" already exists for ${type}.`;
+        }
+
+        for (const layerName of enteredLayerNames) {
+          const layerCollision = others.some(c =>
+            c.layers.some(l => l.name === layerName) || c.final_layer.name === layerName
+          );
+          if (layerCollision) {
+            return `Layer name "${layerName}" is already used in another ${type} chart.`;
+          }
+        }
+
+        return null;
+      })
+    );
+  }
+
   saveChart(): void {
     const type = this.selectedChart();
     if (!type) {
@@ -369,19 +429,34 @@ export class MeasureChart implements OnInit {
       return;
     }
 
-    const finalLayerName = this.finalLayer()?.name?.trim();
-
-    if (!finalLayerName) {
-      this.saveError.set('Final layer name is required (this is used as the chart name).');
-      return;
-    }
-    if (!this.filmType.trim()) {
-      this.saveError.set('Film type is required.');
+    const fieldError = this.validateRequiredFields();
+    if (fieldError) {
+      this.saveError.set(fieldError);
       return;
     }
 
     this.saveError.set(null);
     this.saving.set(true);
+
+    this.checkDuplicate(type).subscribe({
+      next: (duplicateError) => {
+        if (duplicateError) {
+          this.saving.set(false);
+          this.saveError.set(duplicateError);
+          return;
+        }
+        this.performSave(type);
+      },
+      error: () => {
+        this.saving.set(false);
+        this.saveError.set('Failed to check for duplicate charts.');
+      }
+    });
+  }
+
+  /** The actual create/update call — only reached once all validation passes. */
+  private performSave(type: ChartType): void {
+    const finalLayerName = this.finalLayer()!.name.trim();
 
     const layersPayload = this.layers().map(layer => ({
       name: layer.name,
