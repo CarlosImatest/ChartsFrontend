@@ -25,6 +25,9 @@ interface ActiveCell {
 
 const TRAILING_LABELS = ['Dmax-Dmin', 'Decibels'];
 
+// Value range for flagging out-of-range measurements
+const VALUE_RANGE = { min: 1, max: 5 };
+
 @Component({
   selector: 'app-measure-chart',
   standalone: true,
@@ -505,5 +508,15 @@ export class MeasureChart implements OnInit {
         }
       });
     }
+  }
+
+  /**
+   * True if the value is a real number outside the acceptable range.
+   * null/undefined (empty cells) are never flagged — an empty cell
+   * isn't "wrong," it's just not filled in yet.
+   */
+  isOutOfRange(value: number | null | undefined): boolean {
+    if (value === null || value === undefined) return false;
+    return value < VALUE_RANGE.min || value > VALUE_RANGE.max;
   }
 }

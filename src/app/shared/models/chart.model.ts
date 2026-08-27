@@ -26,3 +26,8 @@ export interface ChartResponse {
   layers: Layer[];
   final_layer: Layer;
 }
+
+export enum FilmType {
+  KODAK = 'Kodak',
+  FUJIFILM = 'Fujifilm'
+}
