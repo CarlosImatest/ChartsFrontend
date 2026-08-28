@@ -6,7 +6,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ChartService } from '../../core/services/chart.service';
-import { ChartType, ChartResponse, Layer } from '../../shared/models/chart.model';
+import { ChartType, ChartResponse, Layer, FilmType } from '../../shared/models/chart.model';
 import { CHART_PRESETS } from '../../shared/models/chart-preset.model';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
@@ -41,12 +41,14 @@ export class MeasureChart implements OnInit {
   private route = inject(ActivatedRoute);
 
   chartTypes = Object.values(ChartType);
+  filmTypes = Object.values(FilmType);
+  selectedFilm = signal<FilmType | null>(null);
 
   selectedChart = signal<ChartType | null>(null);
   layers = signal<EditableLayer[]>([]);
   finalLayer = signal<EditableLayer | null>(null);
 
-  filmType = '';
+  //filmType = '';
   saving = signal(false);
   saveError = signal<string | null>(null);
 
@@ -148,7 +150,7 @@ export class MeasureChart implements OnInit {
 
     this.chartService.getChart(chartType, chartId).subscribe({
       next: (chart) => {
-        this.filmType = chart.film_type;
+        this.selectedFilm.set(chart.film_type as FilmType);
         this.populateGridFromChart(chart);
         this.loadingExisting.set(false);
       },
@@ -208,6 +210,10 @@ export class MeasureChart implements OnInit {
       activeStart: 0,
       activeEnd: totalRows
     });
+  }
+
+  onFilmSelect(value: FilmType): void {
+    this.selectedFilm.set(value)
   }
 
   onChartSelect(value: ChartType): void {
@@ -378,7 +384,7 @@ export class MeasureChart implements OnInit {
     if (!finalLayerName) {
       return 'Final layer name is required (this is used as the chart name).';
     }
-    if (!this.filmType.trim()) {
+    if (!this.selectedFilm()) {
       return 'Film type is required.';
     }
 
@@ -460,6 +466,7 @@ export class MeasureChart implements OnInit {
   /** The actual create/update call — only reached once all validation passes. */
   private performSave(type: ChartType): void {
     const finalLayerName = this.finalLayer()!.name.trim();
+    const filmTypeValue = this.selectedFilm() ?? '';
 
     const layersPayload = this.layers().map(layer => ({
       name: layer.name,
@@ -477,7 +484,7 @@ export class MeasureChart implements OnInit {
     if (chartId) {
       this.chartService.updateChart(type, chartId, {
         name: finalLayerName,
-        film_type: this.filmType,
+        film_type: filmTypeValue,
         layers: layersPayload,
         final_layer: finalLayerPayload
       }).subscribe({
@@ -494,7 +501,7 @@ export class MeasureChart implements OnInit {
       this.chartService.createChart({
         chart_type: type,
         name: finalLayerName,
-        film_type: this.filmType,
+        film_type: filmTypeValue,
         layers: layersPayload,
         final_layer: finalLayerPayload
       }).subscribe({

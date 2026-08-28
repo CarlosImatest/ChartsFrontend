@@ -1,7 +1,11 @@
 <div class="chart-meta">
   <mat-form-field>
     <mat-label>Film type</mat-label>
-    <input matInput [(ngModel)]="filmType" name="filmType" />
+    <mat-select [value]="selectedFilm()" (selectionChange)="onFilmSelect($event.value)">
+      @for (film of filmTypes; track film) {
+        <mat-option [value]="film">{{ film }}</mat-option>
+      }
+    </mat-select>
   </mat-form-field>
 
   @if (!isEditMode()) {
