@@ -4,6 +4,7 @@
   display: flex;
   flex-direction: column;
   gap: 24px;
+  color: var(--color-text-secondary);
 
   .info p {
     margin: 4px 0;
@@ -15,6 +16,6 @@
     gap: 4px;
   }
 
-  .error { color: #d9534f; font-size: 14px; }
-  .success { color: #2e7d32; font-size: 14px; }
+  .error { color: var(--color-danger); font-size: 14px; }
+  .success { color: var(--color-success); font-size: 14px; }
 }

@@ -11,6 +11,6 @@
     gap: 4px;
   }
 
-  .success { color: #2e7d32; font-size: 14px; }
-  .error { color: #d9534f; font-size: 14px; }
+  .success { color: var(--color-success); font-size: 14px; }
+  .error { color: var(--color-danger); font-size: 14px; }
 }
