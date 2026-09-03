@@ -1,4 +1,31 @@
+.chart-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+  font-size: 14px;
+  border: 1px solid var(--color-border);
+
+  th, td {
+    border: 1px solid var(--color-border);
+    padding: 8px 10px;
+    text-align: left;
+    color: var(--color-text-secondary);
+  }
+
+  th {
+    background: var(--color-surface-alt);
+    font-weight: 600;
+    color: var(--color-text-primary);
+  }
+
+  td.label-cell {
+    color: var(--color-danger);
+    font-weight: 600;
+  }
+}
+
 .label-cell {
   color: var(--color-danger);
   font-weight: 600;
 }
+

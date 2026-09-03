@@ -1,0 +1,24 @@
+.chart-list-controls {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+table.mat-mdc-table {
+  background: var(--color-surface);
+}
+
+.mat-mdc-header-cell {
+  background: var(--color-surface-alt);
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.mat-mdc-cell {
+  color: var(--color-text-secondary);
+}
+
+.mat-mdc-row:hover {
+  background: var(--color-surface-alt);
+}

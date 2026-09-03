@@ -16,7 +16,8 @@ import { MatInputModule } from '@angular/material/input';
   selector: 'app-chart-list',
   standalone: true,
   imports: [CommonModule, MatTableModule, MatSelectModule, MatFormFieldModule, MatButtonModule, MatInputModule, RouterLink],
-  templateUrl: './chart-list.component.html'
+  templateUrl: './chart-list.component.html',
+  styleUrl: './chart-list.component.scss'
 })
 export class ChartListComponent implements OnInit {
   private chartService = inject(ChartService);
